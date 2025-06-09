@@ -5,7 +5,7 @@ import { Tile, Image, Group, Vector } from 'ol/layer';
 import { OSM, ImageWMS, XYZ, StadiaMaps } from 'ol/source';
 import VectorSource from 'ol/source/Vector';
 import { GeoJSON } from 'ol/format';
-import { fromLonLat } from 'ol/proj';
+import { fromLonLat, transform } from 'ol/proj';
 import { ScaleLine, FullScreen, MousePosition, } from 'ol/control';
 import LayerSwitcher from 'ol-layerswitcher';
 import { createStringXY } from 'ol/coordinate';
@@ -27,7 +27,7 @@ let colombiaBoundary = new Image({
         url: 'https://www.gis-geoserver.polimi.it/geoserver/wms',
         params: { 'LAYERS': 'gis:COL_adm0' }
     }),
-    visible: false
+    visible: true
 });
 
 // Colombia Administrative level 1
@@ -48,7 +48,7 @@ var colombiaRoads = new Image({
         url: 'https://www.gis-geoserver.polimi.it/geoserver/wms',
         params: { 'LAYERS': 'gis:COL_roads' }
     }),
-    visible: false
+    visible: true
 });
 
 // Colombia Rivers
@@ -81,7 +81,7 @@ let overlayLayers = new Group({
 
 
 // Map Initialization
-let mapOrigin = fromLonLat([-74, 4.6]);
+let mapOrigin = fromLonLat([-74, 4.6]); // this is projected to EPSG:3857
 let zoomLevel = 5;
 let map = new Map({
     target: document.getElementById('map'),
@@ -89,9 +89,9 @@ let map = new Map({
     layers: [],
     view: new View({
         center: mapOrigin,
-        zoom: zoomLevel
-    }),
-    projection: 'EPSG:3857'
+        zoom: zoomLevel,
+        projection: 'EPSG:3857',
+    })
 });
 
 // Add the map controls here:
@@ -175,6 +175,7 @@ let wfsLayer = new Vector({
     title: "Colombia Water Areas",
     source: wfsSource,
     visible: true,
+    opacity: 0.7,
     style: new Style({
         fill: new Fill({
             color: "#bde0fe"
@@ -208,6 +209,7 @@ let staticGeoJSONSource = new VectorSource({
 let staticGeoJSONLayer = new Vector({
     title: "Colombia Municipalities",
     source: staticGeoJSONSource,
+    visible: false,
     style: new Style({
         fill: new Fill({
             color: "rgba(255, 127, 80, 0.5)"
@@ -239,27 +241,8 @@ closer.onclick = function () {
 
 // Add the singleclick event code here
 map.on('singleclick', function (event) {
-    var feature = map.forEachFeatureAtPixel(
-        event.pixel, 
-        function (feature, layer) {
-            if(layer == staticGeoJSONLayer){
-                return feature;
-            }
-        }
-    );
+    // Add the singleclick event handler
 
-    if (feature != null) {
-        var pixel = event.pixel;
-        var coord = map.getCoordinateFromPixel(pixel);
-        popup.setPosition(coord);
-
-        content.innerHTML =
-            '<h5>Administrative Level 2</h5><br>' +
-            '<span>' +
-            feature.get('name_2') + ', ' +
-            feature.get('name_1')
-            '</span>';
-    }
 });
 
 // Add the pointermove event code here:
@@ -279,6 +262,7 @@ function getLegendElement(title, color){
         '</span></li>';
 }
 
+// Legend
 for(let overlayLayer of overlayLayers.getLayers().getArray()){
     if(overlayLayer.getSource() instanceof ImageWMS){
         var legendURLParams = {format: "application/json"};
@@ -308,6 +292,7 @@ for(let overlayLayer of overlayLayers.getLayers().getArray()){
         legendHTMLString += getLegendElement(layerTitle, layerColor);
     }
 }
+
 // Finish building the legend HTML string
 var legendContent = document.getElementById('legend-content');
 legendHTMLString += "</ul>";
